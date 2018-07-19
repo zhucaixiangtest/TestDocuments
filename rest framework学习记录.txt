@@ -1,0 +1,209 @@
+版本 python3.6.5
+     Django-2.0.6
+     djangorestframework-3.8.2
+     mysqlclient-1.3.12
+
+
+
+创建一个项目
+django-admin.py startproject 项目名
+
+创建一个app(应用)
+django-admin.py startapp 应用程序名
+
+
+在setting下添加数据库
+      'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'mytest',
+        'PORT': '3306',
+        'HOST': '127.0.0.1',
+        'USER': 'root',
+        'PASSWORD': 'mysql',
+
+
+
+添加app（INSTALLED_APPS ）
+    'login',
+    'rest_framework',
+
+
+
+创建管理员账户
+cd D:\TestApiRequest
+python manage.py createsuperuser(如果报错没有找到相关表，先执行python manage.py migrate)
+
+
+环境切换
+当前若为开发&测试环境setting中DEBUG为True即可，若是生产环境DEBUG = False
+
+ALLOWED_HOSTS = ['*']  这样访问接口失败直接报错，而不是把本机配置抛到页面
+
+
+
+
+model和数据库关系对应
+
+创建一个类，类名是tbl_user 
+添加相关字段 如：
+class tbl_user(models.Model):
+    user_name = models.CharField(max_length=10)
+    emal = models.CharField(max_length=20,default='')
+    phone=models.CharField(max_length=11,default='')
+    password=models.CharField(max_length=30,default='')
+    token_value=models.CharField(max_length=100)
+    status=models.CharField(max_length=100)
+    creat_time=models.DateTimeField(auto_now=True)
+
+到admin.py注册添加的表
+admin.site.register(models.tbl_user)
+
+然后用命令把表生成到数据库（命令随版本）
+python manage.py makemigrations
+python manage.py migrate
+生成后，表名为应用名+类名
+上面某些字段加了属性default=''，原因是后面业务原因加了字段后同步数据表时会提示已有数据新增字段该如何处理，这时在新增字段加default='' 为空处理
+
+
+
+
+
+写一个demo注册接口 post
+
+
+@api_view(http_method_names=['post'])        #只允许post
+def inventory(request):
+  try:
+        parameter_json = request.body    #取到request的body（data）
+        parameter=json.loads(parameter_json)  #json转字典
+        name=parameter['name']     #取字典每个key的值
+        phone = parameter['phone']
+        password = parameter['password']
+        email=parameter['email']
+        parameter_headee = request.META.get("HTTP_HELLO")  #request headers的value，key是 HTTP_KEY值，注意header的key在这要大写，前面加上http
+        parameter_headeeS = request.META.get("HTTP_WORDS")
+
+
+        if phone and password and  email and name:
+            dats=test.tbl_user(user_name=name,emal=email,phone=phone,password=password,status='1') #传值不为空，插入到user表
+            dats.save()
+            dres={'data':'你好吖', 'sas':parameter_headee,'SAAA':parameter_headeeS}
+
+            return HttpResponse(json_Response(dres),content_type="application/json,charset=utf-8") #返回数据为json
+  except Exception as a:
+    return HttpResponse({'data':'no','error':a})
+
+
+
+
+测试下上面的接口
+# coding:utf-8
+
+from django.test import TestCase
+
+# Create your tests here.
+import requests
+import json
+url = 'http://127.0.0.1:8100/testapi/register/'
+datas = {
+
+
+    'name':'hello',
+    'phone':'13774469114',
+    'password':'123456',
+    'email':'zcx@zcx-t.top'
+
+}
+abv=json.dumps(datas)
+header={'aaa':'aaaaqqq'}
+
+h= requests.post(url,data=abv,headers=header)
+aa=h.text
+print(aa)
+
+输出：
+{"data": "你好吖", "sas": null, "SAAA": null}
+
+
+写一个get接口
+
+@api_view(http_method_names=['get'])
+def getuser(request):
+  req=request.GET.get('a')
+  req1 = request.GET.get('b')
+  parameter_headee = request.META.get("HTTP_HELLO")
+  abc={
+     'value':req,
+    'value1':req1,
+    'header_value':parameter_headee
+
+  }
+
+  return HttpResponse(json_Response(abc),content_type="application/json,charset=utf-8")
+
+
+
+postman 测试get接口
+http://127.0.0.1:8100/testapi/getuser/?a=10&b=20
+
+
+
+serializers
+from rest_framework import serializers
+
+from login.LoginModels.models import tbl_user
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = tbl_user
+        fields = ('user_name', 'emal', 'phone', 'password', 'token_value', 'status')
+
+
+
+
+view
+调用serializers序列化出数据
+  products = test.tbl_user.objects.filter(status=req)
+  serializer = ProductSerializer(products, many=True)
+
+
+
+查询数据，根据对象得到各字段	
+ inspect_phone=register_models.tbl_user.objects.filter(phone__contains=phone)
+                # print(inspect_phone[0].user_name)
+
+
+如果用rest framework的APIView类，可能csrf会有问题，所以在setting注释掉即可
+
+
+
+关于model字段类型
+https://www.cnblogs.com/jingzaixin/p/8670094.html
+
+类型清单
+https://www.cnblogs.com/lhj588/archive/2012/05/24/2516040.html
+
+
+
+
+
+
+
+
+
+--------------部署服务器
+https://www.cnblogs.com/zyj-python/p/7545669.html#autoid-1-0-0
+
+
+1、删除现有Python 安装对应版本
+[root@test ~]# rpm -qa|grep python|xargs rpm -ev --allmatches --nodeps ##强制删除已安装程序及其关联
+[root@test ~]# whereis python |xargs rm -frv ##删除所有残余文件 ##xargs，允许你对输出执行其他某些命令
+[root@test ~]# whereis python ##验证删除，返回无结果
+
+
+
+
+
+
+
+

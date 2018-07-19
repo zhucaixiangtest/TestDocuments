@@ -1,0 +1,470 @@
+
+linux
+
+101.200.43.24(公)
+
+172.17.80.97(私
+
+
+yum install -y lrzsz   #安装下sz rz常用到上传下载的命令
+yum install -y tar  安装解压包工具
+
+.tar.gz用 tar -zxvf 包名解压   .tar直接用 tar -xvf 包名解压
+
+
+移动或重名文件夹
+ mv /test1/testa /test2/testb   #移动
+ 
+ mv testc testa    #testc更名testa
+
+
+
+
+
+
+
+rpm -qa | grep mysql 检查下之前有没有安装过mysql
+
+rpm -e --nodeps `rpm -qa | grep mysql 删除mysql的命令
+
+
+
+在线安装，如果安装自定义版本，更改下链接中的版本号
+wget http://dev.mysql.com/get/Downloads/MySQL-8.0.11/mysql-8.0.11-linux-glibc2.12-x86_64.tar 
+
+非在线安装的话，先从官网找到对应的版本，再rz到服务器上解压包安装，或者rpm查看mysql依赖包再用命令安装
+
+
+mysql设置下环境变量
+
+export PATH=$PATH:/usr/local/mysql/bin
+改动环境变量后刷新下环境变量配置文件
+source /etc/profile
+
+
+解压mysql后，添加用户和组
+　#添加用户组
+groupadd mysql
+#添加用户testcx到用户组mysql
+useradd -g mysql mysql
+
+进入安装mysql软件目录，修改目录拥有者为mysql用户
+cd mysql/
+chown -R mysql:mysql ./
+
+安装数据库，此处可能出现错误。
+./scripts/mysql_install_db --user=mysql
+
+解决办法
+yum install -y perl-Data-Dumper
+chown -R root:root ./
+chown -R testcx:root data
+在执行./scripts/mysql_install_db --user=testcx
+若还是报错yum install libaio* -y  或者换用户执行
+
+继续...为写进seriver使用
+cp support-files/mysql.server /etc/init.d/mysqld
+chmod 755 /etc/init.d/mysqld
+#配置文件，复制到etc下
+cp my.cnf /etc/my.cnf
+
+#修改启动脚本
+vi /etc/init.d/mysqld
+
+basedir=/usr/local/mysql/
+datadir=/usr/local/mysql/data/mysql
+
+
+
+启动服务等操作
+service mysqld start
+service mysqld stop  
+service mysqld restart
+
+
+
+#第一次登录root并更改密码
+
+# vim /etc/my.cnf 
+在[mysqld]的段中加上一句：skip-grant-tables 
+例如： 
+[mysqld] 
+
+skip-grant-tables 
+
+
+wq!
+
+重启mysql
+
+mysql -uroot -p mysql 登录root
+
+USE mysql ; 
+UPDATE user SET Password = password ('123pws') WHERE User = 'root' ; 
+
+
+flush privileges ; 
+
+把etc/my.cnf 加的skip-grant-tables 去掉  再重启
+
+完了，登录验证下
+
+
+
+
+在服务器重新创建一个mysql用户    username为创建的用户名  host指定哪个主机可远程访问 所有主机 改成%即可
+
+CREATE USER 'username'@'host' IDENTIFIED BY 'password';
+
+
+创建好用户授权访问数据库所有的权限   *.*表示哪个库的哪个表  *.*表示所有库和表
+1. GRANT ALL PRIVILEGES ON *.* TO 'myuser'@'%' IDENTIFIED BY 'mypassword' WITH GRANT OPTION;
+2. FLUSH   PRIVILEGES;
+
+
+
+
+编辑/etc/my.cnf指定ip 端口
+
+bind-address=0.0.0.0
+port=3308
+重启mysql生效
+
+
+
+关于防火墙
+https://blog.csdn.net/achang21/article/details/52538049
+
+
+contens7之后的版本已经不用iptables了 用的是firewall
+
+所以老命令可能不好使
+先关闭 firewall
+systemctl stop firewalld.service             #停止firewall
+systemctl disable firewalld.service        #禁止firewall开机启动
+
+yum -y install iptables-services 安装iptables service
+
+如果要修改防火墙配置，如增加防火墙端口3306
+vi /etc/sysconfig/iptables 
+增加规则
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 3306 -j ACCEPT
+
+保存退出后
+systemctl restart iptables.service #重启防火墙使配置生效
+systemctl enable iptables.service #设置防火墙开机启动
+
+
+阿里云注意安全策略端口开放
+
+本地navicat验证连接
+
+需注意 便宜的阿里腾讯不会有独立的外网ip  都是做的映射。所以服务器配置内网ip  本地用外网ip连接
+
+
+
+
+
+
+https://www.cnblogs.com/yxpblog/p/5035206.html
+
+linux上的python默认是版本2的，django项目用的是3的版本  所以得升级下版本
+
+cd  /usr/local/
+wget https://www.python.org/ftp/python/3.6.5/Python-3.6.5.tgz
+
+tar -xvf Python-3.6.5.tgz 解压后 目录更名为 mv Python-3.6.5 python26
+
+
+安装
+./configure --prefix=/usr/local/python36 
+
+make
+make install
+（如果报错zipimport.ZipImportError: can’t decompress data 使用yum -y install zlib* 安装相关依赖）
+
+
+
+mv /usr/bin/python /usr/bin/python2.6.6 让之前的版本失效
+#改完后在访问python就会出现  -bash: /usr/bin/python: 没有那个文件或目录（注意这步一定要在安装36后面使用 否则用不了yum了）
+
+
+将新版本大的python的软连接增加到/usr/bin目录下
+ln -s /usr/local/python36/bin/python3.6 /usr/bin/python
+
+将版本python3.5命令加入环境变量
+
+vim /etc/profile
+export PATH=$PATH:/usr/local/python36/bin这句加到文件最下面
+source /etc/profile
+
+这样就完了，
+
+。。。
+但是yum会用不了，因为之前把\usr\bin\的python  改名成python2.6.6
+所以vi /usr/bin/yum   #!/usr/bin/python   修改成#!/usr/bin/python2.6.6
+
+yum 执行 验证
+
+
+但是 尼玛还有个问题  pip 默认是之前的版本的
+使用python3.6的pip 得/usr/local/python36/bin/pip3 install 包名==版本  或者 pip3 install 包名	  这个应该可以改 暂时先不动 有时间再改
+当前服务器应该是双版本python
+
+
+
+安装nginx 和 uwsgi 
+
+pip3 install uwsgi 
+
+
+
+wget http://nginx.org/download/nginx-1.5.6.tar.gz
+
+1. 安装gcc（centos 7之后一般已自带，可以在第6步失败后再安装）
+
+
+yum安装是报错 /usr/libexec/urlgrabber-ext-down时  需要vi 第一行 #! /usr/bin/python 修改为 #! /usr/bin/python2.6.6
+yum install gcc gcc-c++
+2. 安装pcre
+
+yum install -y pcre pcre-devel
+3. 安装zlib
+
+yum install -y zlib zlib-devel
+4. 安装openssl
+
+yum install -y openssl openssl-devel
+
+5. 编译Nginx（加载常用模块如ssl）
+
+./configure --prefix=/usr/local/nginx --with-http_stub_status_module --with-http_gzip_static_module --with-http_ssl_module
+6. 安装Nginx
+
+cd /usr/local/nginx/
+make && make install
+
+这时候可能报错
+make: *** [install] Error 2 ...
+其实make通过了  是make install 报的错
+
+看了会百度知道为啥了，因为之前nginx安装目录在/usr/local/ make是编译一些东西，make install  是把make编译东西 部署到对应的目录 这时候make install会部署到当前文件夹，所以冲突了，然后把nginx移到了/opt/下 重新安装 到make && make install  ok!!!!!!!!!
+
+查看下nginx进程
+ps –ef | grep nginx
+
+如果报错nginx没有pid，执行下面
+ /usr/local/nginx/sbin/nginx -c /usr/local/nginx/conf/nginx.conf
+
+
+启动：
+cd /usr/local/nginx/sbin
+./nginx
+nginx服务启动后默认的进程号会放在/usr/local/nginx/logs/nginx.pid文件
+cat nginx.pid 查看进程号
+
+关闭：
+kill -TERM pid  快速停止服务
+kill -QUIT pid  平缓停止服务
+kill -9 pid     强制停止服务
+
+重启：
+cd /usr/local/nginx
+./nginx -HUP pid
+./nginx -s reload
+
+
+每次启动 /usr/local/nginx/logs/下会生成pid文件 关闭nginx后文件会消失  可以用此查nginx主进程号
+
+
+项目配置
+我把项目路径 /opt/project/TestWebApi
+
+修改setting.py
+Debug = False
+Allow_host=['内网ip’,'localhost',]
+
+
+加这一句
+STATIC_ROOT = os.path.join(BASE_DIR, "/var/www")   #这个主要是将原项目的静态文件移植出来以便访问。如下，注意括号中第二个参数为移植后的目录，不要和之前的静态文件目录相同就好
+python manage.py collectstatic   #进行静态文件移植
+
+----------
+/opt/project/TestWebApi/
+创建socket.ini配置   vi socket.ini 
+
+# Django-related settings
+
+socket = :8100
+
+# the base directory (full path)
+chdir           = /opt/project/TestWebApi/
+
+# Django s wsgi file
+module          = TestWebApi.wsgi
+
+# process-related settings
+# master
+master          = true
+
+# maximum number of worker processes
+processes       = 4
+
+# ... with appropriate permissions - may be needed
+# chmod-socket    = 664
+# clear environment on exit
+vacuum          = true
+
+配置nginx
+vi /usr/local/nginx/conf/nginx.conf
+
+ server{
+            listen 80;
+            server_name localhost;
+            charset utf-8;
+            #index index.nginx-debian.html ;
+            #root /var/www/html;
+            access_log off;
+            location /static {
+                alias /var/www/; #要与之前django的setting.py中添加的static静态文件转移目录一致
+            }
+            location / {
+                uwsgi_pass  127.0.0.1:8000; #端口与原来的uwsgi中设置的端口一致
+                include     /etc/nginx/uwsgi_params;
+            }
+
+
+python manage.py runserver ip:port 
+可能会报错  没有ssl库
+
+rpm -aq|grep openssl  查看有没有包在服务器
+	
+查看结果-这个是正常有的
+
+[root@s011805161450 ~]# rpm -aq|grep openssl
+openssl-1.0.1e-48.el6_8.1.x86_64
+openssl-devel-1.0.1e-48.el6_8.1.x86_64
+
+没有则安装
+yum install openssl-devel -y
+
+yum install openssl
+
+vi /usr/local/python36/Modules/Setup
+#修改Setup文件
+vi /usr/software/Python-2.7.5/Modules/Setup
+#修改结果如下：
+# Socket module helper for socket(2)
+_socket socketmodule.c timemodule.c
+
+# Socket module helper for SSL support; you must comment out the other
+# socket line above, and possibly edit the SSL variable:
+#SSL=/usr/local/ssl
+_ssl _ssl.c \
+-DUSE_SSL -I$(SSL)/include -I$(SSL)/include/openssl \
+-L$(SSL)/lib -lssl -lcrypto
+
+
+重新编译
+pwd
+/usr/local/python36/
+make && make install
+
+
+验证
+>>> import _ssl
+>>> exit()
+
+终于好了！！！
+
+
+尼玛！又报400
+
+1.注意项目中setting配置host配置一个内网 一个外网ip
+2.uwsgi配置
+[uwsgi]
+
+# Django-related settings
+
+socket = :8100
+#鐪熷疄鏈嶅姟鐨勭鍙
+
+# Django椤圭洰鏍圭洰褰(缁濆璺緞)
+chdir           = /opt/project/TestWebApi
+
+# wsgi.py鏂囦欢鍦ㄩ」鐩腑鐨勪綅缃
+module          = TestWebApi.wsgi
+
+# process-related settings
+# master
+master          = true
+
+# 杩愯鐨勮繘绋嬫暟
+processes       = 4
+
+# ... with appropriate permissions - may be needed
+# chmod-socket    = 664
+# clear environment on exit
+vacuum          = true
+
+
+daemonize = /var/log/TestWebApi.log   #注意如果没有log就不在后台运行了
+
+
+3.配置nginx
+
+
+ server {
+        listen       80;
+        server_name  www.zcx-t.top;
+
+        #charset koi8-r;
+
+        #access_log  logs/host.access.log  main;
+
+        location / {
+            root   html;
+            index  index.html index.htm;
+            include uwsgi_params;
+            uwsgi_pass 172.17.80.97:8100
+            uwsgi_read_timeout 30;
+
+
+
+
+
+
+        }
+
+
+
+启动项目
+
+
+1.uwsgi --ini /uwsgi.ini
+2.启动nginx  cd opt .../ ./nginx
+
+
+醉了   域名配置了访问不了，只能外网ip访问
+
+
+解决域名中~~~~~……~~~~~~~
+
+
+
+终于解决了
+
+setting中host中需要把域名加上，否则请求到nginx转向应用，应用不认可这个请求域名
+保险配置 哈哈哈~
+ ['172.17.80.97','101.200.43.24','www.zcx-t.top','zcx-t.top']
+
+
+python后端学历路程告一段落，性能开始学起！
+
+
+
+
+
+
+
+
